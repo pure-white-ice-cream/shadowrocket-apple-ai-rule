@@ -2,17 +2,26 @@
 
 本仓库提供两种使用方式，不包含代理节点、订阅或凭据。所有 `PROXY` 流量使用 Shadowrocket 中你选择的代理节点。
 
-## 推荐：补丁加入现有配置
+## 补丁加入其他现有配置
 
 复制 `rules/apple-ai-chatgpt.list` 的内容，粘贴到原配置的 `[Rule]` 下一行，位于所有 `IP-CIDR,17.0.0.0/8,DIRECT`、Apple IPv6 直连、Apple 通用域名直连、`GEOIP` 和 `FINAL` 规则之前。不要新增第二个 `[Rule]` 段，不要把 `.list` 当作完整配置导入。原有国内、Google、Telegram 等规则可以继续保留。
 
-Shadowrocket 按顺序匹配，前面的规则优先。补丁将原有 Apple AI / Siri 代理规则去重并前置，补充 `chatgpt.com` 等核心域名。根据用户重新提供的准确域名，原 OCR 的 `Is.apple.com` 应为 `ls.apple.com`，`gspe1-ssl.Is.apple.com` 应为 `gspe1-ssl.ls.apple.com`，`apps.mastic.com` 应为 `apps.mzstatic.com`。已同步修正补丁和完整配置，并明确列出 `gspe1-ssl.ls.apple.com`。`apps.mzstatic.com,PROXY` 位于通用 `mzstatic.com,DIRECT` 之前，避免被直连规则覆盖。未获准确清单支持的 `apple-relay.tasty-edge.com` 已移除；原有 `apple-relay.akamaized.net` 作为额外兼容规则保留，不属于本次用户确认的 17 个域名。
+Shadowrocket 按顺序匹配，前面的规则优先。补丁将原有 Apple AI / Siri 代理规则去重并前置（完整配置则保留源文件的重复规则），补充 `chatgpt.com` 等核心域名。根据用户重新提供的准确域名，原 OCR 的 `Is.apple.com` 应为 `ls.apple.com`，`gspe1-ssl.Is.apple.com` 应为 `gspe1-ssl.ls.apple.com`，`apps.mastic.com` 应为 `apps.mzstatic.com`。已同步修正补丁和完整配置，并明确列出 `gspe1-ssl.ls.apple.com`。`apps.mzstatic.com,PROXY` 位于通用 `mzstatic.com,DIRECT` 之前，避免被直连规则覆盖。补丁已移除 `apple-relay.tasty-edge.com`，完整配置则将它替换为准确清单中的 `apple-relay.fastly-edge.com`；原有 `apple-relay.akamaized.net` 作为额外兼容规则保留，不属于本次用户确认的 17 个域名。
 
 原配置已有 `FINAL,PROXY`，且一部分 Apple relay 规则已经在 Apple IP 直连规则之前。因此不能仅凭缺少 `chatgpt.com` 或规则顺序断言扩展失败原因；补丁是分流修正与诊断起点。
 
-## 独立对照配置
+## 完整配置（推荐）
 
-`shadowrocket-apple-ai.conf` 是可导入的精简完整配置，保留源文件的 General 设置，加入上述优先代理规则、Apple 通用直连、局域网直连、中国 GeoIP 直连和最终代理。它不包含原文件其他站点的逐条分流规则；如需保留这些规则，请使用上面的补丁方式。
+`shadowrocket-apple-ai.conf` 以用户最后提供的 **723 行源文件** 为基础，现在为 **729 行**。完整保留国内网站、Apple、Copilot、LINE、Google、Clubhouse、其他国外网站、SoundCloud、ChatGPT、Telegram、DNS Leak、LAN、China、Final 的所有原有分流，以及 `[General]`、`[Host]`、`[URL Rewrite]` 的设置、注释和顺序。
+
+相对该源文件，只作了四处域名替换，并在 `[Rule]` 最顶部新增六行：一行说明、四条 ChatGPT 核心域名代理规则和一行空行。四处替换为：
+
+- `apple-relay.tasty-edge.com` → `apple-relay.fastly-edge.com`。
+- `gspe1-ssl.Is.apple.com` → `gspe1-ssl.ls.apple.com`。
+- `Is.apple.com` → `ls.apple.com`。
+- `apps.mastic.com` → `apps.mzstatic.com`。
+
+原有重复规则继续保留；`apps.mzstatic.com` 的代理规则仍在通用 `mzstatic.com,DIRECT` 之前。已比较确认，除上述变化外，完整配置与这次源文件逐字一致。以前发布的 91 行精简版已被此完整版本替换。
 
 备份原配置，导入并启用配置，将“全局路由”设为“配置”，选择可用的代理节点。配置文件自身不会提供代理服务器。
 
