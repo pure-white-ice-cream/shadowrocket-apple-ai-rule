@@ -1,46 +1,57 @@
-# Shadowrocket：Siri / Apple Intelligence 与 ChatGPT
+# Shadowrocket：Apple Intelligence、Siri 与 ChatGPT
 
-本仓库提供两种使用方式，不包含代理节点、订阅或凭据。所有 `PROXY` 流量使用 Shadowrocket 中你选择的代理节点。
+用于 Apple Intelligence、Siri 和 ChatGPT 的完整分流配置，同时包含国内网站、Google、Telegram 等常用服务规则。
 
-## 补丁加入其他现有配置
+## 使用前准备
 
-复制 `rules/apple-ai-chatgpt.list` 的内容，粘贴到原配置的 `[Rule]` 下一行，位于所有 `IP-CIDR,17.0.0.0/8,DIRECT`、Apple IPv6 直连、Apple 通用域名直连、`GEOIP` 和 `FINAL` 规则之前。不要新增第二个 `[Rule]` 段，不要把 `.list` 当作完整配置导入。原有国内、Google、Telegram 等规则可以继续保留。
+- 安装 Shadowrocket，并准备可用的代理节点或订阅；本项目仅提供分流配置。
+- 备份当前配置，方便需要时切换回来。
+- 确认设备、系统版本、语言和地区支持 Apple Intelligence 及 ChatGPT 扩展。
 
-Shadowrocket 按顺序匹配，前面的规则优先。补丁将原有 Apple AI / Siri 代理规则去重并前置（完整配置则保留源文件的重复规则），补充 `chatgpt.com` 等核心域名。根据用户重新提供的准确域名，原 OCR 的 `Is.apple.com` 应为 `ls.apple.com`，`gspe1-ssl.Is.apple.com` 应为 `gspe1-ssl.ls.apple.com`，`apps.mastic.com` 应为 `apps.mzstatic.com`。已同步修正补丁和完整配置，并明确列出 `gspe1-ssl.ls.apple.com`。`apps.mzstatic.com,PROXY` 位于通用 `mzstatic.com,DIRECT` 之前，避免被直连规则覆盖。补丁已移除 `apple-relay.tasty-edge.com`，完整配置则将它替换为准确清单中的 `apple-relay.fastly-edge.com`；原有 `apple-relay.akamaized.net` 作为额外兼容规则保留，不属于本次用户确认的 17 个域名。
+## 扫码导入（推荐）
 
-原配置已有 `FINAL,PROXY`，且一部分 Apple relay 规则已经在 Apple IP 直连规则之前。因此不能仅凭缺少 `chatgpt.com` 或规则顺序断言扩展失败原因；补丁是分流修正与诊断起点。
+打开 **Shadowrocket 首页的扫描入口**，扫描下方二维码，按提示添加配置。二维码使用 Shadowrocket 配置导入链接。
 
-## 完整配置（推荐）
+![使用 Shadowrocket 扫码导入完整配置](assets/shadowrocket-config-qr.png)
 
-`shadowrocket-apple-ai.conf` 以用户最后提供的 **723 行源文件** 为基础，现在为 **729 行**。完整保留国内网站、Apple、Copilot、LINE、Google、Clubhouse、其他国外网站、SoundCloud、ChatGPT、Telegram、DNS Leak、LAN、China、Final 的所有原有分流，以及 `[General]`、`[Host]`、`[URL Rewrite]` 的设置、注释和顺序。
+如果二维码显示在同一台手机上，可以先保存图片，再通过扫描界面的相册入口识别；如当前版本不支持相册识别，请使用下面的链接导入方式。
 
-相对该源文件，只作了四处域名替换，并在 `[Rule]` 最顶部新增六行：一行说明、四条 ChatGPT 核心域名代理规则和一行空行。四处替换为：
+## 链接导入
 
-- `apple-relay.tasty-edge.com` → `apple-relay.fastly-edge.com`。
-- `gspe1-ssl.Is.apple.com` → `gspe1-ssl.ls.apple.com`。
-- `Is.apple.com` → `ls.apple.com`。
-- `apps.mastic.com` → `apps.mzstatic.com`。
+在 Shadowrocket 的 **配置** 页面，选择添加远程配置的入口，粘贴以下地址并下载：
 
-原有重复规则继续保留；`apps.mzstatic.com` 的代理规则仍在通用 `mzstatic.com,DIRECT` 之前。已比较确认，除上述变化外，完整配置与这次源文件逐字一致。以前发布的 91 行精简版已被此完整版本替换。
+```text
+https://raw.githubusercontent.com/pure-white-ice-cream/shadowrocket-apple-ai-rule/main/shadowrocket-apple-ai.conf
+```
 
-备份原配置，导入并启用配置，将“全局路由”设为“配置”，选择可用的代理节点。配置文件自身不会提供代理服务器。
+[查看完整配置](shadowrocket-apple-ai.conf) · [打开配置下载链接](https://raw.githubusercontent.com/pure-white-ice-cream/shadowrocket-apple-ai-rule/main/shadowrocket-apple-ai.conf)
 
-## 手机上验证
+## 启用配置
 
-1. 先确认节点能打开 `https://chatgpt.com`。网页可用只能证明网页访问，不等于 Siri 扩展已经可用。
-2. 打开 Shadowrocket 连接记录，再进入“设置 → Apple Intelligence 与 Siri → ChatGPT”，测试设置扩展和一次“询问 ChatGPT”。记录失败时的目标域名、命中规则、策略、时间及错误信息。对外分享日志前删除账号、令牌等敏感信息。
-3. 对比同一节点下“配置”与“代理”全局路由模式。若全局代理可用而配置模式失败，优先排查分流遗漏；若两者都失败，继续排查节点出口、服务可用性及设备资格。测试后恢复“配置”模式。
-4. 核对系统版本、设备支持情况、语言和地区，以及 Apple Intelligence / ChatGPT 扩展在当前地区的可用性。代理规则不会改变设备、账号或服务的资格限制。
-5. 文本扩展先测试 TCP。语音等功能可能使用 UDP，节点需支持相应转发。默认保留 `udp-policy-not-supported-behaviour = REJECT`；不要用 UDP 直连回退来掩盖代理不支持 UDP 的问题，也不要默认开启全局 UDP/443 封锁。
+1. 在“配置”页面选中下载的 `shadowrocket-apple-ai.conf`，确认它成为当前使用的配置（带勾选标记）。
+2. 返回首页，将“全局路由”设为 **配置**。
+3. 选择可用的代理节点并开启连接。
+4. 打开“设置 → Apple Intelligence 与 Siri → ChatGPT”，按系统提示设置扩展。
+5. 使用 Siri 发起一次“询问 ChatGPT”，确认能够得到回复。
 
-无需安装 MITM 证书或解密 Apple / ChatGPT 的 HTTPS 流量。保留源配置的 DNS 与 IPv6 设置；若日志显示解析或 IPv6 连接失败，再分别做单变量对照测试。
+配置中的 `PROXY` 使用你在 Shadowrocket 中选择的代理节点。国内网站、局域网和普通 Apple 服务按规则直连；Apple AI / Siri 的指定域名和 ChatGPT 服务优先使用代理。
 
-## 参考与验证范围
+## 更新配置
 
-- 用户提供的源配置和随后更正的 17 个域名。
-- 已读取的参考配置：<https://github.com/Johnshall/Shadowrocket-ADBlock-Rules-Forever/blob/release/lazy_group.conf>。其 AI 段包含 `apps.mzstatic.com`、`smoot.apple.com`、`gspe1-ssl.ls.apple.com`、三个 Apple relay 域名、`cp4.cloudflare.com` 和 `guzzoni.apple.com`；这些 AI 规则及 OpenAI RULE-SET 默认均被注释，复制整份配置不会自动启用它们。其 `AI` 是已定义的策略组，本仓库使用 `PROXY`，无需复制分组定义。
-- Apple 官方参考：<https://support.apple.com/zh-cn/101555>。
+在 Shadowrocket 的远程配置列表中，更新或重新下载同一地址的配置，再确认本地使用的是更新后的文件。无需重新扫码。建议先备份自己对配置所作的修改，再下载更新。
 
-生成时云环境请求 Apple 页面返回 HTTP 403，未能实时核验官方域名清单。Apple AI 条目按用户准确清单更正，并与上述社区配置交叉核对；不能把这里的列表视作已核实的最新官方完整清单。ChatGPT 通用网站域名也不代表 Apple 内置扩展一定会直接连接这些域名。
+## 已有配置只添加 AI 规则
 
-云端仅进行文件结构、域名规则、去重和代表性规则顺序检查，无法运行 iOS Shadowrocket、验证代理节点，或证明真实设备上的 Siri / ChatGPT 扩展可用。实际失败原因需通过上述设备连接记录确认。
+如果希望继续使用自己的配置，复制 [AI 补丁规则](rules/apple-ai-chatgpt.list)，粘贴到已有配置 `[Rule]` 的最顶部，放在 Apple 通用直连、Apple IP 直连、`GEOIP` 和 `FINAL` 规则之前。
+
+补丁不是完整配置，无需新增第二个 `[Rule]` 段，也不要将 `.list` 文件当作完整配置导入。
+
+## 无法使用时
+
+- **配置下载失败：** 先使用当前可用的代理连接，再重试下载链接。
+- **ChatGPT 扩展不可用：** 先确认同一节点可以访问 [ChatGPT](https://chatgpt.com)，再查看扩展请求的连接记录与命中策略。网页可用仍需单独验证 Siri 扩展。
+- **怀疑分流问题：** 临时将全局路由切换到“代理”做对照。如果全局代理可用而配置模式不可用，请查看失败连接的域名和规则；完成测试后恢复“配置”。
+- **两种路由模式都不可用：** 检查节点出口是否受服务支持，以及设备、账号、系统版本、语言和地区是否符合使用要求。
+- **语音功能异常：** 确认代理节点支持所需 UDP 转发，再分别测试文本与语音功能。
+
+本配置无需安装 MITM 证书。实际服务可用性取决于设备条件、服务地区支持及代理节点。
