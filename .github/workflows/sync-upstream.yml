@@ -1,0 +1,47 @@
+name: Sync upstream Shadowrocket rules
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/sync_upstream.py'
+      - 'tests/test_sync_upstream.py'
+      - 'rules/apple-ai-chatgpt.list'
+      - '.github/workflows/sync-upstream.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream-main
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+      - name: Validate sync behavior
+        run: python3 -m unittest discover -s tests -v
+      - name: Fetch upstream and apply AI rules
+        run: python3 scripts/sync_upstream.py
+      - name: Commit updated configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add shadowrocket-apple-ai.conf
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Sync upstream whitelist and advertising rules"
+          git push origin HEAD:main
