@@ -120,7 +120,7 @@ class SyncTests(unittest.TestCase):
         self.assertLess(rules.index("IP-CIDR,17.0.0.0/8,苹果服务,no-resolve"),
                         rules.index("GEOIP,CN,DIRECT"))
 
-    def test_four_groups_default_to_proxy_and_allow_independent_nodes(self):
+    def test_service_defaults_are_explicit_and_regex_pools_are_separate(self):
         merged = merge_config(upstream(), PATCH, SERVICES)
         self.assertEqual(merged.count("[Proxy Group]\n"), 1)
         groups = merged.split("[Proxy Group]\n", 1)[1].split("[Rule]\n", 1)[0]
@@ -129,11 +129,34 @@ class SyncTests(unittest.TestCase):
             if line and not line.startswith("#"):
                 name, values = line.split(" = ", 1)
                 definitions[name] = values.split(",")
-        self.assertEqual(set(definitions), {"Apple AI", "ChatGPT", "苹果服务", "微软服务"})
-        for values in definitions.values():
+        services = ("Apple AI", "ChatGPT", "苹果服务", "微软服务")
+        pools = {f"{name} 自选节点" for name in services}
+        self.assertEqual(set(definitions), set(services) | pools)
+        for name in services:
+            values = definitions[name]
             self.assertEqual(values[:3], ["select", "PROXY", "DIRECT"])
             self.assertIn("policy-select-name=PROXY", values)
-            self.assertIn("policy-regex-filter=.*", values)
+            # Regex-driven member lists must not displace the default PROXY item.
+            self.assertFalse(any(value.startswith("policy-regex-filter=")
+                                 for value in values))
+            self.assertEqual(values[3], f"{name} 自选节点")
+            self.assertEqual(definitions[values[3]], ["select", "policy-regex-filter=.*"])
+
+    def test_independent_node_pools_never_mix_regex_with_explicit_members(self):
+        merged = merge_config(upstream(), PATCH, SERVICES)
+        groups = merged.split("[Proxy Group]\n", 1)[1].split("[Rule]\n", 1)[0]
+        for line in groups.splitlines():
+            if not line or line.startswith("#"):
+                continue
+            name, definition = line.split(" = ", 1)
+            values = definition.split(",")
+            with self.subTest(group=name):
+                explicit = [value for value in values[1:] if "=" not in value]
+                regex = [value for value in values[1:] if value.startswith("policy-regex-filter=")]
+                self.assertFalse(explicit and regex)
+                selected = [value.split("=", 1)[1] for value in values[1:]
+                            if value.startswith("policy-select-name=")]
+                self.assertTrue(all(value in explicit for value in selected))
 
     def test_removes_only_targeted_proxy_bypasses(self):
         merged = merge_config(upstream(), PATCH, SERVICES)
@@ -207,6 +230,7 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(merged.count("[Proxy Group]\n"), 1)
         self.assertIn("Existing = select,PROXY\n", merged)
         for invalid in (source.replace("Existing =", "Apple AI ="),
+                        source.replace("Existing =", "Apple AI 自选节点 ="),
                         source.replace("[Rule]\n", "[Proxy Group]\n[Rule]\n")):
             with self.assertRaises(ValueError):
                 merge_config(invalid, PATCH, SERVICES)
