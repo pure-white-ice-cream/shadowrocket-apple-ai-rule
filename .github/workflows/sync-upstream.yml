@@ -10,6 +10,7 @@ on:
       - 'scripts/sync_upstream.py'
       - 'tests/test_sync_upstream.py'
       - 'rules/apple-ai-chatgpt.list'
+      - 'rules/service-groups.list'
       - '.github/workflows/sync-upstream.yml'
 
 permissions:
@@ -30,7 +31,7 @@ jobs:
           ref: main
       - name: Validate sync behavior
         run: python3 -m unittest discover -s tests -v
-      - name: Fetch upstream and apply AI rules
+      - name: Fetch upstream and apply service groups
         run: python3 scripts/sync_upstream.py
       - name: Commit updated configuration
         shell: bash

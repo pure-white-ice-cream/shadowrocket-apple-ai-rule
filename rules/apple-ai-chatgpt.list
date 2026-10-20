@@ -1,40 +1,40 @@
-# Shadowrocket rules with explicit PROXY policy.
-# Paste immediately after [Rule], BEFORE Apple IP DIRECT rules / GEOIP / FINAL.
+# Requires Apple AI and ChatGPT groups in [Proxy Group] (see README).
+# Paste immediately after [Rule], BEFORE advertising / service / GEOIP / FINAL rules.
 # Apple/Siri endpoints corrected against the user-supplied domain list.
 # Not a verified complete list of current Apple requirements.
-DOMAIN,guzzoni.apple.com,PROXY
-DOMAIN,mask-api.fe.apple-dns.net,PROXY
-DOMAIN,mask-api.icloud.com,PROXY
-DOMAIN,mask-t.apple-dns.net,PROXY
-DOMAIN,mask.apple-dns.net,PROXY
-DOMAIN-SUFFIX,smoot.apple.com,PROXY
-DOMAIN-SUFFIX,apple-relay.apple.com,PROXY
-DOMAIN-SUFFIX,apple-relay.cloudflare.com,PROXY
-DOMAIN-SUFFIX,apple-relay.fastly-edge.com,PROXY
+DOMAIN,guzzoni.apple.com,Apple AI
+DOMAIN,mask-api.fe.apple-dns.net,Apple AI
+DOMAIN,mask-api.icloud.com,Apple AI
+DOMAIN,mask-t.apple-dns.net,Apple AI
+DOMAIN,mask.apple-dns.net,Apple AI
+DOMAIN-SUFFIX,smoot.apple.com,Apple AI
+DOMAIN-SUFFIX,apple-relay.apple.com,Apple AI
+DOMAIN-SUFFIX,apple-relay.cloudflare.com,Apple AI
+DOMAIN-SUFFIX,apple-relay.fastly-edge.com,Apple AI
 # Additional relay from the original source; outside the corrected domain list.
-DOMAIN-SUFFIX,apple-relay.akamaized.net,PROXY
-DOMAIN-SUFFIX,apple-relay.mask.apple-dns.net,PROXY
-DOMAIN-SUFFIX,cp4.cloudflare.com,PROXY
-DOMAIN-SUFFIX,gateway.icloud.com,PROXY
-DOMAIN,gspe1-ssl.ls.apple.com,PROXY
-DOMAIN-SUFFIX,ls.apple.com,PROXY
-DOMAIN-SUFFIX,mask-h2.icloud.com,PROXY
-DOMAIN-SUFFIX,mask.icloud.com,PROXY
-DOMAIN-SUFFIX,apps.mzstatic.com,PROXY
-DOMAIN-KEYWORD,siri,PROXY
+DOMAIN-SUFFIX,apple-relay.akamaized.net,Apple AI
+DOMAIN-SUFFIX,apple-relay.mask.apple-dns.net,Apple AI
+DOMAIN-SUFFIX,cp4.cloudflare.com,Apple AI
+DOMAIN-SUFFIX,gateway.icloud.com,Apple AI
+DOMAIN,gspe1-ssl.ls.apple.com,Apple AI
+DOMAIN-SUFFIX,ls.apple.com,Apple AI
+DOMAIN-SUFFIX,mask-h2.icloud.com,Apple AI
+DOMAIN-SUFFIX,mask.icloud.com,Apple AI
+DOMAIN-SUFFIX,apps.mzstatic.com,Apple AI
+DOMAIN-KEYWORD,siri,Apple AI
 
 # ChatGPT core domains: root domains and their subdomains.
-DOMAIN-SUFFIX,chatgpt.com,PROXY
-DOMAIN-SUFFIX,openai.com,PROXY
-DOMAIN-SUFFIX,oaistatic.com,PROXY
-DOMAIN-SUFFIX,oaiusercontent.com,PROXY
+DOMAIN-SUFFIX,chatgpt.com,ChatGPT
+DOMAIN-SUFFIX,openai.com,ChatGPT
+DOMAIN-SUFFIX,oaistatic.com,ChatGPT
+DOMAIN-SUFFIX,oaiusercontent.com,ChatGPT
 
 # Login / challenge / voice services retained from the supplied ChatGPT rules.
-DOMAIN-SUFFIX,auth0.com,PROXY
-DOMAIN,openai-api.arkoselabs.com,PROXY
-DOMAIN-SUFFIX,client-api.arkoselabs.com,PROXY
-DOMAIN,challenges.cloudflare.com,PROXY
-DOMAIN,chat.openai.com.cdn.cloudflare.net,PROXY
-DOMAIN-SUFFIX,chatgpt.livekit.cloud,PROXY
-DOMAIN-SUFFIX,host.livekit.cloud,PROXY
-DOMAIN-SUFFIX,turn.livekit.cloud,PROXY
+DOMAIN-SUFFIX,auth0.com,ChatGPT
+DOMAIN,openai-api.arkoselabs.com,ChatGPT
+DOMAIN-SUFFIX,client-api.arkoselabs.com,ChatGPT
+DOMAIN,challenges.cloudflare.com,ChatGPT
+DOMAIN,chat.openai.com.cdn.cloudflare.net,ChatGPT
+DOMAIN-SUFFIX,chatgpt.livekit.cloud,ChatGPT
+DOMAIN-SUFFIX,host.livekit.cloud,ChatGPT
+DOMAIN-SUFFIX,turn.livekit.cloud,ChatGPT

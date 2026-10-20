@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Refresh the full upstream config and apply the repository's AI rules."""
+"""Refresh upstream rules and apply persistent service policies and proxy groups."""
 
+from ipaddress import ip_network
 from pathlib import Path
 import re
 import tempfile
@@ -14,16 +15,49 @@ UPSTREAM_URL = (
 )
 OUTPUT = ROOT / "shadowrocket-apple-ai.conf"
 PATCH = ROOT / "rules/apple-ai-chatgpt.list"
+SERVICE_PATCH = ROOT / "rules/service-groups.list"
 BYPASS_REMOVALS = {"*.ls.apple.com", "seed-sequoia.siri.apple.com"}
+GROUP_NAMES = ("Apple AI", "ChatGPT", "苹果服务", "微软服务")
+PROXY_GROUPS = (
+    "# Each group defaults to the home-screen proxy; all imported nodes are selectable.\n"
+    + "\n".join(
+        f"{name} = select,PROXY,DIRECT,policy-regex-filter=.*,policy-select-name=PROXY"
+        for name in GROUP_NAMES
+    ) + "\n"
+)
 NOTICE = (
     "# Derived from Johnshall/Shadowrocket-ADBlock-Rules-Forever (Moshel and Johnshall).\n"
     "# License: CC BY-SA 4.0; https://creativecommons.org/licenses/by-sa/4.0/\n"
-    "# Local changes: prepend AI proxy rules and remove Siri/location proxy bypasses.\n"
+    "# Local changes: AI/service policy groups, proxy defaults, and Siri bypass fixes.\n"
     "# Source: " + UPSTREAM_URL + "\n\n"
 )
 
 
-def merge_config(source: str, patch: str) -> str:
+def validate_patch(patch: str, policies: set[str], *, allow_ip: bool = False) -> str:
+    patch = patch.replace("\r\n", "\n").strip()
+    active = [line.strip() for line in patch.splitlines()
+              if line.strip() and not line.lstrip().startswith("#")]
+    if not active:
+        raise ValueError("Local rule patch is empty")
+    for line in active:
+        fields = line.split(",")
+        if len(fields) < 3 or fields[2] not in policies:
+            raise ValueError("Local patch contains an unsupported policy")
+        if fields[0] in {"DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD"}:
+            if len(fields) != 3 or not re.fullmatch(r"[a-z0-9.-]+", fields[1]):
+                raise ValueError("Invalid local domain rule")
+        elif allow_ip and fields[0] in {"IP-CIDR", "IP-CIDR6"}:
+            if len(fields) != 4 or fields[3] != "no-resolve":
+                raise ValueError("Local IP rules must use no-resolve")
+            network = ip_network(fields[1], strict=True)
+            if network.version != (6 if fields[0] == "IP-CIDR6" else 4):
+                raise ValueError("Local IP rule has the wrong address family")
+        else:
+            raise ValueError("Local patch contains an unsupported rule type")
+    return patch
+
+
+def merge_config(source: str, patch: str, service_patch: str) -> str:
     source = source.replace("\r\n", "\n")
     sections = re.findall(r"^\[([^\]]+)\]\s*$", source, re.MULTILINE)
     if sections.count("General") != 1 or sections.count("Rule") != 1:
@@ -46,16 +80,30 @@ def merge_config(source: str, patch: str) -> str:
     if len(ad_rules) < 100:
         raise ValueError("Upstream has too few advertising rules; refusing to replace config")
 
-    patch = patch.replace("\r\n", "\n").strip()
-    active_patch = [line.strip() for line in patch.splitlines()
-                    if line.strip() and not line.lstrip().startswith("#")]
-    if not active_patch:
-        raise ValueError("AI patch is empty")
-    for line in active_patch:
-        if not re.fullmatch(r"DOMAIN(?:-SUFFIX|-KEYWORD)?,[a-z0-9.-]+,PROXY", line):
-            raise ValueError("AI patch must contain only domain rules with PROXY policy")
+    patch = validate_patch(patch, {"PROXY", "Apple AI", "ChatGPT"})
+    service_patch = validate_patch(service_patch, {"苹果服务", "微软服务"}, allow_ip=True)
 
-    # Only change skip-proxy in General. Preserve every other upstream line.
+    # Leave the upstream advertising block ahead of ordinary service routing.
+    # Insert before its first non-reject rule, including broad domain/GEOIP rules.
+    service_offset = 0
+    for line in rule_body.splitlines(keepends=True):
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#"):
+            fields = [field.strip() for field in stripped.split(",")]
+            policy = fields[1] if fields[0].upper() == "FINAL" else (
+                fields[2] if len(fields) >= 3 else ""
+            )
+            if not policy.upper().startswith("REJECT"):
+                break
+        service_offset += len(line)
+    else:
+        raise ValueError("Cannot find the upstream service rule boundary")
+    insertion = rule_match.end() + service_offset
+    source = (source[:insertion]
+              + "# Local service policies: override upstream direct/proxy defaults below.\n"
+              + service_patch + "\n\n" + source[insertion:])
+
+    # Only change skip-proxy in General. Keep LAN and captive-portal bypasses.
     general_start = re.search(r"^\[General\][ \t]*\n", source, re.MULTILINE)
     if general_start is None:
         raise ValueError("Missing General section header")
@@ -81,6 +129,27 @@ def merge_config(source: str, patch: str) -> str:
         + patch + "\n\n",
         merged, count=1, flags=re.MULTILINE,
     )
+
+    # Preserve any unrelated upstream groups and avoid silently shadowing names.
+    group_matches = list(re.finditer(r"^\[Proxy Group\][ \t]*\n", merged, re.MULTILINE))
+    if len(group_matches) > 1:
+        raise ValueError("Upstream has duplicate Proxy Group sections")
+    if group_matches:
+        group_start = group_matches[0].end()
+        next_section = re.search(r"^\[", merged[group_start:], re.MULTILINE)
+        group_end = group_start + next_section.start() if next_section else len(merged)
+        existing_names = {
+            line.split("=", 1)[0].strip()
+            for line in merged[group_start:group_end].splitlines()
+            if "=" in line and not line.lstrip().startswith("#")
+        }
+        if existing_names.intersection(GROUP_NAMES):
+            raise ValueError("Upstream proxy group conflicts with a local group")
+        merged = merged[:group_end] + PROXY_GROUPS + "\n" + merged[group_end:]
+    else:
+        merged = re.sub(r"^\[Rule\][ \t]*\n",
+                        lambda _: "[Proxy Group]\n" + PROXY_GROUPS + "\n[Rule]\n",
+                        merged, count=1, flags=re.MULTILINE)
     return NOTICE + merged.rstrip("\n") + "\n"
 
 
@@ -93,9 +162,10 @@ def main() -> None:
         source = response.read(16 * 1024 * 1024 + 1)
     if len(source) > 16 * 1024 * 1024:
         raise ValueError("Upstream exceeds the expected size limit")
-    merged = merge_config(source.decode("utf-8-sig"), PATCH.read_text(encoding="utf-8"))
+    merged = merge_config(source.decode("utf-8-sig"), PATCH.read_text(encoding="utf-8"),
+                          SERVICE_PATCH.read_text(encoding="utf-8"))
     if OUTPUT.exists() and OUTPUT.read_text(encoding="utf-8") == merged:
-        print("No upstream or AI rule changes")
+        print("No upstream or local policy changes")
         return
     temporary = None
     try:

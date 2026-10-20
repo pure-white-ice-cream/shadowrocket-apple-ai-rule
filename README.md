@@ -1,6 +1,6 @@
 # Shadowrocket：广告过滤、Apple Intelligence、Siri 与 ChatGPT
 
-基于 [Johnshall 的白名单过滤 + 广告配置](https://johnshall.github.io/Shadowrocket-ADBlock-Rules-Forever/sr_top500_whitelist_ad.conf)，完整保留上游广告过滤、国内外网站分流，并优先代理指定的 Apple Intelligence、Siri 与 ChatGPT 域名。
+基于 [Johnshall 的白名单过滤 + 广告配置](https://johnshall.github.io/Shadowrocket-ADBlock-Rules-Forever/sr_top500_whitelist_ad.conf)，保留上游广告过滤与国内外网站分流，增加 Apple AI、ChatGPT、苹果服务、微软服务四个独立策略组。四组默认使用代理，可在 Shadowrocket 中分别选择节点或直连。
 
 ## 使用前准备
 
@@ -30,27 +30,50 @@ https://raw.githubusercontent.com/pure-white-ice-cream/shadowrocket-apple-ai-rul
 
 1. 在“配置”页面选中下载的 `shadowrocket-apple-ai.conf`，确认它成为当前使用的配置（带勾选标记）。
 2. 返回首页，将“全局路由”设为 **配置**。
-3. 选择可用的代理节点并开启连接。推荐先使用你已经验证可用的 Siri AI Beta 节点。
+3. 选择可用的代理节点并开启连接；四个分组默认跟随首页选择的 `PROXY` 节点。需要分别选节点时，按下节操作。Apple AI 推荐先选择你已验证可用的 Siri AI Beta 节点。
 4. 在系统设置中开启 Apple Intelligence，并进入“设置 → Apple Intelligence 与 Siri → ChatGPT”，按提示设置扩展。
 5. 使用 Siri 发起一次“询问 ChatGPT”，确认能够得到回复。
 
-广告域名按上游规则拦截；国内网站和白名单网站直连，其余流量按上游规则和最终代理策略处理。Apple AI / Siri 与 ChatGPT 的本地优先规则放在广告和通用直连规则之前，使用首页选择的 `PROXY` 节点。本配置不含独立 AI 策略组。
+## 在 Shadowrocket 中切换分组节点
+
+进入 **配置 → 当前配置右侧的 ⓘ → 代理分组**，打开要调整的分组并选择节点。部分版本也可从首页下拉进入分组面板；入口以应用版本为准。
+
+| 分组 | 负责的流量 | 默认选择 |
+| --- | --- | --- |
+| `Apple AI` | 本地优先规则中的 Apple Intelligence、Siri 与中继端点 | `PROXY` |
+| `ChatGPT` | ChatGPT、OpenAI 及补丁中的登录、语音端点 | `PROXY` |
+| `苹果服务` | Apple、iCloud、App Store、下载、地图及指定 Apple CDN/IP | `PROXY` |
+| `微软服务` | Microsoft、账户登录、Microsoft 365、Outlook、OneDrive、Bing/Copilot 等 | `PROXY` |
+
+每组使用 `policy-regex-filter=.*` 匹配本机已导入的节点，不依赖订阅名称或地区命名，可以分别选择不同节点。例如让 Apple AI 使用美国节点、微软服务使用日本节点。`PROXY` 表示跟随首页当前节点，`DIRECT` 表示该组直连；要固定某组的出口，直接在该组中选具体节点。
+
+分流顺序为：**AI 优先规则 → 上游广告拦截 → 苹果/微软服务规则 → 上游其余规则**。苹果与微软的本地服务规则覆盖下方旧的直连规则，默认走代理；Apple AI 和 ChatGPT 独立于普通苹果服务组，普通苹果服务改为直连时，两组仍按各自选择处理。国内网站和其他白名单仍按上游规则直连，其余流量按上游及最终代理策略处理。
+
+服务分组覆盖 [服务规则文件](rules/service-groups.list) 中列出的域名与 IP，并非所有 Apple/Microsoft 旗下服务的完整清单。未收录域名仍使用上游规则；需要扩展时可在该文件中补充。
 
 ## 自动同步与手机更新
 
-本仓库通过 GitHub Actions **每 6 小时检查一次上游**，有变化时自动更新完整配置。同步时会重新加入本项目的 AI 优先规则，并移除 Siri 相关的两项代理绕过设置，避免被上游更新覆盖。若下载失败或内容检查失败，将保留上一份配置。GitHub 定时任务可能延迟。
+本仓库通过 GitHub Actions **每 6 小时检查一次上游**，有变化时自动更新完整配置。同步时会重新加入四个策略组、AI 优先规则与苹果/微软服务规则，并移除 Siri 相关的两项代理绕过设置，避免被上游更新覆盖。局域网、`captive.apple.com` 与 `sequoia.apple.com` 的上游代理绕过设置保留。若下载失败或内容检查失败，将保留上一份配置。GitHub 定时任务可能延迟。
 
 **仓库自动更新不等于手机自动更新。** 在 Shadowrocket 的远程配置列表中，更新或重新下载同一地址的配置，再确认本地使用的是新版文件。如果你的版本提供远程配置自动更新设置，可在应用中另行开启。下载地址和二维码保持不变，无需重新扫码。
 
-不要直接修改生成的完整配置来保存长期自定义规则；下一次同步会重新生成它。需要持久化 AI 规则时，在仓库中修改 [AI 补丁规则](rules/apple-ai-chatgpt.list)，自动同步会将这些规则重新合并。
+不要直接修改生成的完整配置来保存长期自定义规则；下一次同步会重新生成它。需要持久化规则时，在仓库中修改 [AI 补丁规则](rules/apple-ai-chatgpt.list) 或 [服务分组规则](rules/service-groups.list)；分组定义由 [生成脚本](scripts/sync_upstream.py) 管理。手机重新下载完整配置后，请检查各组当前选项；应用可能保留旧选择，文件中的默认值不保证覆盖手机已保存的选择。
 
 仓库维护者也可以在 [Actions](https://github.com/pure-white-ice-cream/shadowrocket-apple-ai-rule/actions/workflows/sync-upstream.yml) 中选择 **Sync upstream Shadowrocket rules → Run workflow** 手动同步。同步失败时可在该页面查看日志。
 
 ## 已有配置只添加 AI 规则
 
-复制 [AI 补丁规则](rules/apple-ai-chatgpt.list)，粘贴到已有配置 `[Rule]` 的最顶部，放在广告过滤、Apple 通用直连、Apple IP 直连、`GEOIP` 和 `FINAL` 规则之前。同时从 `[General]` 的 `skip-proxy` 中移除 `*.ls.apple.com` 和 `seed-sequoia.siri.apple.com`（如存在）。
+先在已有配置的 `[Proxy Group]` 中添加以下两组（没有该段时，在 `[Rule]` 前创建）：
 
-补丁不是完整配置，无需新增第二个 `[Rule]` 段，也不要将 `.list` 文件当作完整配置导入。
+```ini
+[Proxy Group]
+Apple AI = select,PROXY,DIRECT,policy-regex-filter=.*,policy-select-name=PROXY
+ChatGPT = select,PROXY,DIRECT,policy-regex-filter=.*,policy-select-name=PROXY
+```
+
+再复制 [AI 补丁规则](rules/apple-ai-chatgpt.list)，粘贴到已有配置 `[Rule]` 的最顶部，放在广告过滤、Apple 通用直连、Apple IP 直连、`GEOIP` 和 `FINAL` 规则之前。同时从 `[General]` 的 `skip-proxy` 中移除 `*.ls.apple.com` 和 `seed-sequoia.siri.apple.com`（如存在）。若只想沿用首页节点而不创建分组，可先把补丁中的 `,Apple AI` 和 `,ChatGPT` 替换为 `,PROXY`。
+
+补丁不是完整配置，不要重复创建 `[Proxy Group]` 或 `[Rule]` 段，也不要将 `.list` 文件当作完整配置导入。
 
 ## 无法使用时
 
@@ -65,4 +88,4 @@ Siri / ChatGPT 代理规则无需解密它们的 HTTPS 流量。DNS、IPv6、URL
 
 ## 上游与许可
 
-上游配置来自 [Johnshall/Shadowrocket-ADBlock-Rules-Forever](https://github.com/Johnshall/Shadowrocket-ADBlock-Rules-Forever)，作者为 Moshel 和 Johnshall。本项目添加 AI 优先规则、调整相关代理绕过设置，并自动同步上游；依据 [CC BY-SA 4.0](LICENSE) 共享。
+上游配置来自 [Johnshall/Shadowrocket-ADBlock-Rules-Forever](https://github.com/Johnshall/Shadowrocket-ADBlock-Rules-Forever)，作者为 Moshel 和 Johnshall。本项目添加 AI 优先规则、服务策略组及代理默认值，调整相关代理绕过设置，并自动同步上游；依据 [CC BY-SA 4.0](LICENSE) 共享。
