@@ -18,11 +18,18 @@ PATCH = ROOT / "rules/apple-ai-chatgpt.list"
 SERVICE_PATCH = ROOT / "rules/service-groups.list"
 BYPASS_REMOVALS = {"*.ls.apple.com", "seed-sequoia.siri.apple.com"}
 GROUP_NAMES = ("Apple AI", "ChatGPT", "苹果服务", "微软服务")
+NODE_GROUP_NAMES = tuple(f"{name} 自选节点" for name in GROUP_NAMES)
+LOCAL_GROUP_NAMES = GROUP_NAMES + NODE_GROUP_NAMES
 PROXY_GROUPS = (
-    "# Each group defaults to the home-screen proxy; all imported nodes are selectable.\n"
+    "# Service selectors default to PROXY (the current home-screen node).\n"
+    "# Keep explicit policies separate from regex-only node pools.\n"
     + "\n".join(
-        f"{name} = select,PROXY,DIRECT,policy-regex-filter=.*,policy-select-name=PROXY"
-        for name in GROUP_NAMES
+        f"{name} = select,PROXY,DIRECT,{nodes},policy-select-name=PROXY"
+        for name, nodes in zip(GROUP_NAMES, NODE_GROUP_NAMES)
+    )
+    + "\n\n# Optional independent node pools; inactive until selected by a service group.\n"
+    + "\n".join(
+        f"{name} = select,policy-regex-filter=.*" for name in NODE_GROUP_NAMES
     ) + "\n"
 )
 NOTICE = (
@@ -143,7 +150,7 @@ def merge_config(source: str, patch: str, service_patch: str) -> str:
             for line in merged[group_start:group_end].splitlines()
             if "=" in line and not line.lstrip().startswith("#")
         }
-        if existing_names.intersection(GROUP_NAMES):
+        if existing_names.intersection(LOCAL_GROUP_NAMES):
             raise ValueError("Upstream proxy group conflicts with a local group")
         merged = merged[:group_end] + PROXY_GROUPS + "\n" + merged[group_end:]
     else:
